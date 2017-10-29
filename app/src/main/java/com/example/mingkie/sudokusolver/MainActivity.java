@@ -3,6 +3,7 @@ package com.example.mingkie.sudokusolver;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.icu.text.SimpleDateFormat;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -17,6 +18,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 //import com.ibm.watson.developer_cloud.android.library.camera.CameraHelper;
 import com.ibm.watson.developer_cloud.android.library.camera.CameraHelper;
@@ -24,8 +26,12 @@ import com.ibm.watson.developer_cloud.visual_recognition.v3.VisualRecognition;
 import com.ibm.watson.developer_cloud.visual_recognition.v3.model.ClassifiedImages;
 import com.ibm.watson.developer_cloud.visual_recognition.v3.model.ClassifyOptions;
 
+import org.w3c.dom.Text;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
 
@@ -37,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private CameraHelper cameraHelper;
     private Button btnCamera;
     private ImageView loadedImage;
+    private TextView textView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
 
         btnCamera = (Button) findViewById(R.id.btnCamera);
         loadedImage = (ImageView) findViewById(R.id.imageView);
+
 
         // Initialize Visual Recognition client
         vrClient = new VisualRecognition(
@@ -73,7 +81,8 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == CameraHelper.REQUEST_IMAGE_CAPTURE) {
             Log.d("Debug", "Display photo");
             final Bitmap photo = cameraHelper.getBitmap(resultCode);
-            final File photoFile = cameraHelper.getFile(resultCode);
+            final File photoFile = saveBitmapToFile(cameraHelper.getFile(resultCode));
+            //photoFile = saveBitmapToFile(photoFile);
             loadedImage.setImageBitmap(photo);
             AsyncTask.execute(new Runnable() {
                 @Override
@@ -82,18 +91,66 @@ public class MainActivity extends AppCompatActivity {
                         ClassifyOptions options = new ClassifyOptions.Builder()
                                 .imagesFile(photoFile)
                                 .build();
-                        ClassifiedImages result = vrClient.classify(options).execute();
-                        Log.d("Debug", String.valueOf(result));
+                        final ClassifiedImages result = vrClient.classify(options).execute();
+
+                        Log.d("Debug", "Result: " + String.valueOf(result));
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                textView = findViewById(R.id.textView);
+                                textView.setText(result.toString());
+                            }
+                        });
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
                 }
             });
-
-
-
         }
 
+    }
+
+    public File saveBitmapToFile(File file){
+        try {
+
+            // BitmapFactory options to downsize the image
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            o.inSampleSize = 6;
+            // factor of downsizing the image
+
+            FileInputStream inputStream = new FileInputStream(file);
+            //Bitmap selectedBitmap = null;
+            BitmapFactory.decodeStream(inputStream, null, o);
+            inputStream.close();
+
+            // The new size we want to scale to
+            final int REQUIRED_SIZE=75;
+
+            // Find the correct scale value. It should be the power of 2.
+            int scale = 1;
+            while(o.outWidth / scale / 2 >= REQUIRED_SIZE &&
+                    o.outHeight / scale / 2 >= REQUIRED_SIZE) {
+                scale *= 2;
+            }
+
+            BitmapFactory.Options o2 = new BitmapFactory.Options();
+            o2.inSampleSize = scale;
+            inputStream = new FileInputStream(file);
+
+            Bitmap selectedBitmap = BitmapFactory.decodeStream(inputStream, null, o2);
+            inputStream.close();
+
+            // here i override the original image file
+            file.createNewFile();
+            FileOutputStream outputStream = new FileOutputStream(file);
+
+            selectedBitmap.compress(Bitmap.CompressFormat.JPEG, 100 , outputStream);
+
+            return file;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
 
