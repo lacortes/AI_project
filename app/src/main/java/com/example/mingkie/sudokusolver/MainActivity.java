@@ -1,5 +1,6 @@
 package com.example.mingkie.sudokusolver;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -153,5 +154,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public static Intent newIntent(Context packageContext) {
+        Intent i = new Intent(packageContext, MainActivity.class);
+        return i;
+    }
 
 }
